@@ -56,7 +56,10 @@ public class GAs implements BranchPredictor {
     @Override
     public BranchResult predict(BranchInstruction branchInstruction) {
         // TODO: complete Task 1
-        return BranchResult.NOT_TAKEN;
+        Bit[] history = getCacheEntry(branchInstruction.getInstructionAddress());
+        PSPHT.putIfAbsent(history, getDefaultBlock());
+        SC.load(PSPHT.get(history));
+        return (SC.read()[0] == Bit.ZERO) ? BranchResult.NOT_TAKEN : BranchResult.TAKEN;
     }
 
     /**
@@ -68,6 +71,9 @@ public class GAs implements BranchPredictor {
     @Override
     public void update(BranchInstruction branchInstruction, BranchResult actual) {
         // TODO: complete Task 2
+        Bit[] counter = CombinationalLogic.count(SC.read(), actual == BranchResult.TAKEN, CountMode.SATURATING);
+        PSPHT.put(getCacheEntry(branchInstruction.getInstructionAddress()), counter);
+        BHR.insert(Bit.of(actual == BranchResult.TAKEN));
     }
 
     /**

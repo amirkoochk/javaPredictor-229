@@ -44,6 +44,7 @@ public class GAg implements BranchPredictor {
     public BranchResult predict(BranchInstruction branchInstruction) {
         // TODO : complete Task 1
         Bit[] history = BHR.read();
+        PHT.putIfAbsent(history, getDefaultBlock());
         SC.load(PHT.get(history));
         return SC.read()[0] == Bit.ZERO ? BranchResult.NOT_TAKEN : BranchResult.TAKEN;
     }

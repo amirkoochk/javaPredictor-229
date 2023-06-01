@@ -6,6 +6,8 @@ import hardwar.branch.prediction.shared.devices.*;
 
 import java.util.Arrays;
 
+import static java.lang.Math.pow;
+
 public class PAp implements BranchPredictor {
 
     private final int branchInstructionSize;
@@ -25,25 +27,31 @@ public class PAp implements BranchPredictor {
         this.branchInstructionSize = branchInstructionSize;
 
         // Initialize the PABHR with the given bhr and branch instruction size
-        PABHR = null;
+        PABHR = new RegisterBank(branchInstructionSize, BHRSize);
 
         // Initializing the PAPHT with BranchInstructionSize as PHT Selector and 2^BHRSize row as each PHT entries
         // number and SCSize as block size
-        PAPHT = null;
+        PAPHT = new PerAddressPredictionHistoryTable(branchInstructionSize, (int) pow(2, BHRSize), SCSize);
 
         // Initialize the SC register
-        SC = null;
+        SC = new SIPORegister("SC", SCSize, null);
     }
 
     @Override
     public BranchResult predict(BranchInstruction branchInstruction) {
-        // TODO: complete Task 1
-        return BranchResult.NOT_TAKEN;
+        Bit[] history = getCacheEntry(branchInstruction.getInstructionAddress(), PABHR.read(branchInstruction.getInstructionAddress()).read());
+        PAPHT.putIfAbsent(history, getDefaultBlock());
+        SC.load(PAPHT.get(history));
+        return (SC.read()[0] == Bit.ZERO) ? BranchResult.NOT_TAKEN : BranchResult.TAKEN;
     }
 
     @Override
     public void update(BranchInstruction instruction, BranchResult actual) {
-        // TODO:complete Task 2
+        Bit[] counter = CombinationalLogic.count(SC.read(), actual == BranchResult.TAKEN, CountMode.SATURATING);
+        PAPHT.put(getCacheEntry(instruction.getInstructionAddress(), PABHR.read(instruction.getInstructionAddress()).read()), counter);
+        ShiftRegister temp = PABHR.read(instruction.getInstructionAddress());
+        temp.insert(Bit.of(actual == BranchResult.TAKEN));
+        PABHR.write(instruction.getInstructionAddress(), temp.read());
     }
 
 

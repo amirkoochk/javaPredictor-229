@@ -50,6 +50,7 @@ public class GAp implements BranchPredictor {
     public BranchResult predict(BranchInstruction branchInstruction) {
         // TODO: complete Task 1
         Bit[] history = getCacheEntry(branchInstruction.getInstructionAddress());
+        PAPHT.putIfAbsent(history, getDefaultBlock());
         SC.load(PAPHT.get(history));
         return (SC.read()[0] == Bit.ZERO) ? BranchResult.NOT_TAKEN : BranchResult.TAKEN;
     }

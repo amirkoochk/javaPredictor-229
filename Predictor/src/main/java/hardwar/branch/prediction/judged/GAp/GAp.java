@@ -1,9 +1,12 @@
 package hardwar.branch.prediction.judged.GAp;
 
+import com.sun.tools.javac.util.ArrayUtils;
 import hardwar.branch.prediction.shared.*;
 import hardwar.branch.prediction.shared.devices.*;
 
 import java.util.Arrays;
+
+import static java.lang.Math.pow;
 
 public class GAp implements BranchPredictor {
     private final int branchInstructionSize;
@@ -28,14 +31,13 @@ public class GAp implements BranchPredictor {
         this.branchInstructionSize = branchInstructionSize;
 
         // Initialize the BHR register with the given size and no default value
-        this.BHR = null;
-
+        this.BHR = new SIPORegister("BHR", BHRSize, null);
         // Initializing the PAPHT with BranchInstructionSize as PHT Selector and 2^BHRSize row as each PHT entries
         // number and SCSize as block size
-        PAPHT = null;
+        PAPHT = new PerAddressPredictionHistoryTable(branchInstructionSize, (int) pow(2, BHRSize), SCSize);
 
         // Initialize the SC register
-        SC = null;
+        SC = new SIPORegister("SC", SCSize, null);
     }
 
     /**
@@ -47,7 +49,9 @@ public class GAp implements BranchPredictor {
     @Override
     public BranchResult predict(BranchInstruction branchInstruction) {
         // TODO: complete Task 1
-        return BranchResult.NOT_TAKEN;
+        Bit[] history = getCacheEntry(branchInstruction.getInstructionAddress());
+        SC.load(PAPHT.get(history));
+        return (SC.read()[0] == Bit.ZERO) ? BranchResult.NOT_TAKEN : BranchResult.TAKEN;
     }
 
     /**
@@ -59,6 +63,9 @@ public class GAp implements BranchPredictor {
     @Override
     public void update(BranchInstruction branchInstruction, BranchResult actual) {
         // TODO : complete Task 2
+        Bit[] counter = CombinationalLogic.count(SC.read(), actual == BranchResult.TAKEN, CountMode.SATURATING);
+        PAPHT.put(getCacheEntry(branchInstruction.getInstructionAddress()), counter);
+        BHR.insert(Bit.of(actual == BranchResult.TAKEN));
     }
 
 

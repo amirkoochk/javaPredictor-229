@@ -5,6 +5,8 @@ import hardwar.branch.prediction.shared.devices.*;
 
 import java.util.Arrays;
 
+import static java.lang.Math.pow;
+
 public class PAg implements BranchPredictor {
     private final ShiftRegister SC; // saturating counter register
     private final RegisterBank PABHR; // per address branch history register
@@ -25,13 +27,13 @@ public class PAg implements BranchPredictor {
     public PAg(int BHRSize, int SCSize, int branchInstructionSize) {
         // TODO: complete the constructor
         // Initialize the PABHR with the given bhr and branch instruction size
-        PABHR = null;
+        PABHR = new RegisterBank(branchInstructionSize, BHRSize);
 
         // Initialize the PHT with a size of 2^size and each entry having a saturating counter of size "SCSize"
-        PHT = null;
+        PHT = new PageHistoryTable((int) pow(2, BHRSize), SCSize);
 
         // Initialize the SC register
-        SC = null;
+        SC = new SIPORegister("SC", SCSize, null);
     }
 
     /**
@@ -41,7 +43,10 @@ public class PAg implements BranchPredictor {
     @Override
     public BranchResult predict(BranchInstruction instruction) {
         // TODO: complete Task 1
-        return BranchResult.NOT_TAKEN;
+        Bit[] address = PABHR.read(instruction.getInstructionAddress()).read();
+        PHT.putIfAbsent(address, getDefaultBlock());
+        SC.load(PHT.get(address));
+        return SC.read()[0] == Bit.ZERO ? BranchResult.NOT_TAKEN : BranchResult.TAKEN;
     }
 
     /**
@@ -51,6 +56,9 @@ public class PAg implements BranchPredictor {
     @Override
     public void update(BranchInstruction instruction, BranchResult actual) {
         // TODO: complete Task 2
+        Bit[] counter = CombinationalLogic.count(SC.read(), actual == BranchResult.TAKEN, CountMode.SATURATING);
+        PHT.put(PABHR.read(instruction.getInstructionAddress()).read(), counter);
+        PABHR.read(instruction.getInstructionAddress()).insert(Bit.of(actual == BranchResult.TAKEN));
     }
 
     /**

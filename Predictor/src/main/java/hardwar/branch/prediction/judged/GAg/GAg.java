@@ -59,7 +59,6 @@ public class GAg implements BranchPredictor {
     public void update(BranchInstruction instruction, BranchResult actual) {
         // TODO: complete Task 2
         Bit[] counter = CombinationalLogic.count(SC.read(), actual == BranchResult.TAKEN, CountMode.SATURATING);
-//        SC.load(counter);
         PHT.put(BHR.read(), counter);
         BHR.insert(Bit.of(actual == BranchResult.TAKEN));
     }

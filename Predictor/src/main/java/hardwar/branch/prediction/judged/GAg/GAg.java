@@ -5,6 +5,8 @@ import hardwar.branch.prediction.shared.devices.*;
 
 import java.util.Arrays;
 
+import static java.lang.Math.pow;
+
 public class GAg implements BranchPredictor {
     private final ShiftRegister BHR; // branch history register
     private final Cache<Bit[], Bit[]> PHT; // page history table
@@ -23,13 +25,13 @@ public class GAg implements BranchPredictor {
     public GAg(int BHRSize, int SCSize) {
         // TODO : complete the constructor
         // Initialize the BHR register with the given size and no default value
-        this.BHR = new ShiftRegister(BHRSize);
+        this.BHR = new SIPORegister("BHR", BHRSize, null);
 
         // Initialize the PHT with a size of 2^size and each entry having a saturating counter of size "SCSize"
-        PHT = new Cache<>(new int[]{1 << BHRSize, SCSize}, this::getDefaultBlock);
+        PHT = new PageHistoryTable((int) pow(2, BHRSize), SCSize);
 
         // Initialize the SC register
-        SC = new ShiftRegister(SCSize);
+        SC = new SIPORegister("SC", SCSize, null);
     }
 
     /**
@@ -41,15 +43,9 @@ public class GAg implements BranchPredictor {
     @Override
     public BranchResult predict(BranchInstruction branchInstruction) {
         // TODO : complete Task 1
-        Bit[] history = BHR.getBits();
-        Bit[] counter = PHT.get(history);
-        int threshold = (int) Math.pow(2, SC.getLength() - 1);
-
-        if (counter != null && counter.length > 0) {
-            int counterValue = counter[0].toInt();
-            return (counterValue >= threshold) ? BranchResult.TAKEN : BranchResult.NOT_TAKEN;
-        }
-        return BranchResult.NOT_TAKEN;
+        Bit[] history = BHR.read();
+        SC.load(PHT.get(history));
+        return SC.read()[0] == Bit.ZERO ? BranchResult.NOT_TAKEN : BranchResult.TAKEN;
     }
 
     /**
@@ -61,25 +57,18 @@ public class GAg implements BranchPredictor {
     @Override
     public void update(BranchInstruction instruction, BranchResult actual) {
         // TODO: complete Task 2
-        Bit[] history = BHR.getBits();
-        Bit[] counter = PHT.get(history);
-        int threshold = (int) Math.pow(2, SC.getLength() - 1);
+        Bit[] counter = SC.read();
 
-        if (counter == null || counter.length == 0) {
-            counter = getDefaultBlock();
+        if (actual == BranchResult.TAKEN) {
+            if (Bit.toNumber(counter) < pow(2, counter.length) - 1)
+                CombinationalLogic.count(counter, true, CountMode.SATURATING);
+        } else {
+            if (Bit.toNumber(counter) > 0)
+                CombinationalLogic.count(counter, false, CountMode.SATURATING);
         }
 
-        int counterValue = counter[0].toInt();
-        boolean isTaken = actual == BranchResult.TAKEN;
-
-        if (isTaken && counterValue < threshold) {
-            counter[0] = Bit.valueOf(counterValue + 1);
-        } else if (!isTaken && counterValue > 0) {
-            counter[0] = Bit.valueOf(counterValue - 1);
-        }
-
-        PHT.put(history, counter);
-        BHR.shiftRight(isTaken ? Bit.ONE : Bit.ZERO);
+        PHT.put(BHR.read(), counter);
+        BHR.insert(Bit.of(actual == BranchResult.TAKEN));
     }
 
 

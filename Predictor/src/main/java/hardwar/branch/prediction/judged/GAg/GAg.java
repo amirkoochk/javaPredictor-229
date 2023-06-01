@@ -23,13 +23,13 @@ public class GAg implements BranchPredictor {
     public GAg(int BHRSize, int SCSize) {
         // TODO : complete the constructor
         // Initialize the BHR register with the given size and no default value
-        this.BHR = null;
+        this.BHR = new ShiftRegister(BHRSize);
 
         // Initialize the PHT with a size of 2^size and each entry having a saturating counter of size "SCSize"
-        PHT = null;
+        PHT = new Cache<>(new int[]{1 << BHRSize, SCSize}, this::getDefaultBlock);
 
         // Initialize the SC register
-        SC = null;
+        SC = new ShiftRegister(SCSize);
     }
 
     /**
@@ -41,6 +41,14 @@ public class GAg implements BranchPredictor {
     @Override
     public BranchResult predict(BranchInstruction branchInstruction) {
         // TODO : complete Task 1
+        Bit[] history = BHR.getBits();
+        Bit[] counter = PHT.get(history);
+        int threshold = (int) Math.pow(2, SC.getLength() - 1);
+
+        if (counter != null && counter.length > 0) {
+            int counterValue = counter[0].toInt();
+            return (counterValue >= threshold) ? BranchResult.TAKEN : BranchResult.NOT_TAKEN;
+        }
         return BranchResult.NOT_TAKEN;
     }
 
@@ -53,6 +61,25 @@ public class GAg implements BranchPredictor {
     @Override
     public void update(BranchInstruction instruction, BranchResult actual) {
         // TODO: complete Task 2
+        Bit[] history = BHR.getBits();
+        Bit[] counter = PHT.get(history);
+        int threshold = (int) Math.pow(2, SC.getLength() - 1);
+
+        if (counter == null || counter.length == 0) {
+            counter = getDefaultBlock();
+        }
+
+        int counterValue = counter[0].toInt();
+        boolean isTaken = actual == BranchResult.TAKEN;
+
+        if (isTaken && counterValue < threshold) {
+            counter[0] = Bit.valueOf(counterValue + 1);
+        } else if (!isTaken && counterValue > 0) {
+            counter[0] = Bit.valueOf(counterValue - 1);
+        }
+
+        PHT.put(history, counter);
+        BHR.shiftRight(isTaken ? Bit.ONE : Bit.ZERO);
     }
 
 

@@ -58,7 +58,9 @@ public class PAg implements BranchPredictor {
         // TODO: complete Task 2
         Bit[] counter = CombinationalLogic.count(SC.read(), actual == BranchResult.TAKEN, CountMode.SATURATING);
         PHT.put(PABHR.read(instruction.getInstructionAddress()).read(), counter);
-        PABHR.read(instruction.getInstructionAddress()).insert(Bit.of(actual == BranchResult.TAKEN));
+        ShiftRegister temp = PABHR.read(instruction.getInstructionAddress());
+        temp.insert(Bit.of(actual == BranchResult.TAKEN));
+        PABHR.write(instruction.getInstructionAddress(), temp.read());
     }
 
     /**

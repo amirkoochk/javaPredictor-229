@@ -6,6 +6,8 @@ import hardwar.branch.prediction.shared.devices.*;
 
 import java.util.Arrays;
 
+import static java.lang.Math.pow;
+
 public class GAs implements BranchPredictor {
 
     private final int branchInstructionSize;
@@ -29,19 +31,19 @@ public class GAs implements BranchPredictor {
      */
     public GAs(int BHRSize, int SCSize, int branchInstructionSize, int KSize, HashMode hashmode) {
         // TODO: complete the constructor
-        this.branchInstructionSize = 0;
-        this.KSize = 0;
-        this.hashMode = HashMode.XOR;
+        this.branchInstructionSize = branchInstructionSize;
+        this.KSize = KSize;
+        this.hashMode = hashmode;
 
         // Initialize the BHR register with the given size and no default value
-        BHR = null;
+        BHR = new SIPORegister("BHR", BHRSize, null);
 
         // Initializing the PAPHT with K bit as PHT selector and 2^BHRSize row as each PHT entries
         // number and SCSize as block size
-        PSPHT = null;
+        PSPHT = new PerAddressPredictionHistoryTable(KSize, (int) pow(2, BHRSize), SCSize);
 
         // Initialize the saturating counter
-        SC = null;
+        SC = new SIPORegister("SC", SCSize, null);
     }
 
     /**
